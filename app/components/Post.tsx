@@ -35,6 +35,8 @@ export default function Post({ post, onUpdate }: PostProps) {
   const [commentText, setCommentText] = useState('');
   const [liked, setLiked] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  const [lastTap, setLastTap] = useState(0);
 
   const isOwnPost = user?.id === post.userId;
 
@@ -85,6 +87,22 @@ export default function Post({ post, onUpdate }: PostProps) {
     } catch (error) {
       console.error('Error commenting:', error);
     }
+  };
+
+  const handleDoubleTap = () => {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTap;
+    
+    if (tapLength < 300 && tapLength > 0) {
+      // Double tap detected
+      if (!liked) {
+        handleLike();
+        setShowHeartAnimation(true);
+        setTimeout(() => setShowHeartAnimation(false), 1000);
+      }
+    }
+    
+    setLastTap(currentTime);
   };
 
   const getTimeAgo = (timestamp: string) => {
@@ -171,13 +189,30 @@ export default function Post({ post, onUpdate }: PostProps) {
 
       {/* Post Image */}
       {post.image && (
-        <div className="relative w-full h-96">
+        <div 
+          className="relative w-full h-96 cursor-pointer select-none"
+          onClick={handleDoubleTap}
+        >
           <Image
             src={post.image}
             alt="Post image"
             fill
             className="object-cover"
           />
+          
+          {/* Heart Animation */}
+          {showHeartAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="animate-ping absolute">
+                <svg className="w-32 h-32 text-red-500 opacity-75" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <svg className="w-24 h-24 text-white drop-shadow-2xl" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+              </svg>
+            </div>
+          )}
         </div>
       )}
 
