@@ -54,6 +54,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [userPosts, setUserPosts] = useState<PostType[]>([]);
   const [userFriends, setUserFriends] = useState<Friend[]>([]);
   const [showProfilePicture, setShowProfilePicture] = useState(false);
+  const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
 
   const isOwnProfile = currentUser?.id === resolvedParams.id;
 
@@ -66,6 +67,16 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
     fetchUserPosts();
     fetchUserFriends();
   }, [currentUser, resolvedParams.id, router]);
+
+  // Clear highlighted post after 3 seconds
+  useEffect(() => {
+    if (highlightedPostId) {
+      const timer = setTimeout(() => {
+        setHighlightedPostId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedPostId]);
 
   const fetchProfile = async () => {
     try {
@@ -522,7 +533,17 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
             <div className="max-w-2xl mx-auto space-y-6">
               {userPosts.length > 0 ? (
                 userPosts.map(post => (
-                  <Post key={post.id} post={post} onUpdate={fetchUserPosts} />
+                  <div 
+                    key={post.id} 
+                    id={`post-${post.id}`}
+                    className={`transition-all ${
+                      highlightedPostId === post.id 
+                        ? 'ring-4 ring-blue-400 ring-opacity-50 rounded-xl' 
+                        : ''
+                    }`}
+                  >
+                    <Post post={post} onUpdate={fetchUserPosts} />
+                  </div>
                 ))
               ) : (
                 <div className="bg-white rounded-xl shadow-md p-12 text-center">
@@ -591,7 +612,21 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                   {userPosts
                     .filter(post => post.image)
                     .map(post => (
-                      <div key={post.id} className="rounded-lg overflow-hidden cursor-pointer group shadow-md hover:shadow-xl transition-shadow">
+                      <div 
+                        key={post.id} 
+                        onClick={() => {
+                          setActiveTab('posts');
+                          setHighlightedPostId(post.id);
+                          // Scroll to post after a brief delay to let the tab switch
+                          setTimeout(() => {
+                            const element = document.getElementById(`post-${post.id}`);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 100);
+                        }}
+                        className="rounded-lg overflow-hidden cursor-pointer group shadow-md hover:shadow-xl transition-shadow"
+                      >
                         <img
                           src={post.image}
                           alt="Photo"
