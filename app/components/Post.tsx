@@ -34,18 +34,35 @@ export default function Post({ post, onUpdate }: PostProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [liked, setLiked] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const isOwnPost = user?.id === post.userId;
 
   const handleLike = async () => {
-    if (liked) return;
-    
     try {
       await fetch(`http://localhost:3001/api/posts/${post.id}/like`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: liked ? 'unlike' : 'like' }),
       });
-      setLiked(true);
+      setLiked(!liked);
       onUpdate();
     } catch (error) {
-      console.error('Error liking post:', error);
+      console.error('Error toggling like:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/posts/${post.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
     }
   };
 
@@ -110,11 +127,40 @@ export default function Post({ post, onUpdate }: PostProps) {
             </Link>
             <p className="text-sm text-gray-500">{getTimeAgo(post.timestamp)}</p>
           </div>
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-            </svg>
-          </button>
+          {isOwnPost && (
+            <div className="relative">
+              <button
+                onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+              {showDeleteConfirm && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
+                  <button
+                    onClick={() => {
+                      handleDelete();
+                      setShowDeleteConfirm(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Post</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -166,7 +212,7 @@ export default function Post({ post, onUpdate }: PostProps) {
           <svg className="w-6 h-6" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
           </svg>
-          <span className="font-semibold">Like</span>
+          <span className="font-semibold">{liked ? 'Unlike' : 'Like'}</span>
         </button>
         <button
           onClick={() => setShowComments(!showComments)}

@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
+import Post from '../../components/Post';
 import Image from 'next/image';
+import Link from 'next/link';
 import { use } from 'react';
 
 interface User {
@@ -20,6 +22,26 @@ interface User {
   relationship: string;
 }
 
+interface Friend {
+  id: string;
+  friendId: string;
+  friendName: string;
+  friendAvatar: string;
+  status: 'online' | 'offline';
+}
+
+interface PostType {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  content: string;
+  image?: string;
+  timestamp: string;
+  likes: number;
+  comments: any[];
+}
+
 export default function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const { user: currentUser } = useAuth();
@@ -28,6 +50,9 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<User>>({});
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'friends' | 'photos'>('about');
+  const [userPosts, setUserPosts] = useState<PostType[]>([]);
+  const [userFriends, setUserFriends] = useState<Friend[]>([]);
 
   const isOwnProfile = currentUser?.id === resolvedParams.id;
 
@@ -37,6 +62,8 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
       return;
     }
     fetchProfile();
+    fetchUserPosts();
+    fetchUserFriends();
   }, [currentUser, resolvedParams.id, router]);
 
   const fetchProfile = async () => {
@@ -57,6 +84,29 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
       setProfileUser(null);
     }
     setLoading(false);
+  };
+
+  const fetchUserPosts = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/posts');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const allPosts = await response.json();
+      const filtered = allPosts.filter((post: PostType) => post.userId === resolvedParams.id);
+      setUserPosts(filtered);
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+    }
+  };
+
+  const fetchUserFriends = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/friends/${resolvedParams.id}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setUserFriends(data);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -231,16 +281,44 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
             {/* Navigation Tabs */}
             <div className="border-t border-gray-200 mt-4 pt-2">
               <div className="flex space-x-6">
-                <button className="text-blue-600 font-semibold py-3 border-b-4 border-blue-600">
+                <button
+                  onClick={() => setActiveTab('about')}
+                  className={`font-semibold py-3 transition-colors ${
+                    activeTab === 'about'
+                      ? 'text-blue-600 border-b-4 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-4 rounded-lg'
+                  }`}
+                >
                   About
                 </button>
-                <button className="text-gray-600 hover:text-gray-800 font-semibold py-3 hover:bg-gray-100 px-4 rounded-lg transition-colors">
+                <button
+                  onClick={() => setActiveTab('posts')}
+                  className={`font-semibold py-3 transition-colors ${
+                    activeTab === 'posts'
+                      ? 'text-blue-600 border-b-4 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-4 rounded-lg'
+                  }`}
+                >
                   Posts
                 </button>
-                <button className="text-gray-600 hover:text-gray-800 font-semibold py-3 hover:bg-gray-100 px-4 rounded-lg transition-colors">
+                <button
+                  onClick={() => setActiveTab('friends')}
+                  className={`font-semibold py-3 transition-colors ${
+                    activeTab === 'friends'
+                      ? 'text-blue-600 border-b-4 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-4 rounded-lg'
+                  }`}
+                >
                   Friends
                 </button>
-                <button className="text-gray-600 hover:text-gray-800 font-semibold py-3 hover:bg-gray-100 px-4 rounded-lg transition-colors">
+                <button
+                  onClick={() => setActiveTab('photos')}
+                  className={`font-semibold py-3 transition-colors ${
+                    activeTab === 'photos'
+                      ? 'text-blue-600 border-b-4 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-4 rounded-lg'
+                  }`}
+                >
                   Photos
                 </button>
               </div>
@@ -249,11 +327,13 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Profile Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 px-4">
-          {/* Left Column - About */}
-          <div className="md:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">About</h2>
+        <div className="mt-6 px-4">
+          {/* About Tab */}
+          {activeTab === 'about' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">About</h2>
               
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
@@ -340,18 +420,142 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
             </div>
           </div>
 
-          {/* Right Column - Posts */}
           <div className="md:col-span-2">
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Posts</h2>
-              <div className="text-center py-12 text-gray-600">
-                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <p>No posts to show</p>
-              </div>
+              {userPosts.length > 0 ? (
+                <div className="space-y-4">
+                  {userPosts.slice(0, 3).map(post => (
+                    <div key={post.id} className="border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-800 mb-2">{post.content}</p>
+                      {post.image && (
+                        <div className="relative h-48 rounded-lg overflow-hidden bg-gray-200">
+                          <img src={post.image} alt="Post" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
+                        <span>{post.likes} likes</span>
+                        <span>{post.comments.length} comments</span>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setActiveTab('posts')}
+                    className="w-full py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    View All Posts
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-600">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                  <p>No posts to show</p>
+                </div>
+              )}
             </div>
           </div>
+        </div>
+          )}
+
+          {/* Posts Tab */}
+          {activeTab === 'posts' && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              {userPosts.length > 0 ? (
+                userPosts.map(post => (
+                  <Post key={post.id} post={post} onUpdate={fetchUserPosts} />
+                ))
+              ) : (
+                <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">No posts yet</h3>
+                  <p className="text-gray-600">
+                    {isOwnProfile ? "You haven't posted anything yet" : `${profileUser?.name} hasn't posted anything yet`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Friends Tab */}
+          {activeTab === 'friends' && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">
+                Friends ({userFriends.length})
+              </h2>
+              {userFriends.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {userFriends.map(friend => (
+                    <Link
+                      key={friend.id}
+                      href={`/profile/${friend.friendId}`}
+                      className="group"
+                    >
+                      <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-200 mb-2">
+                        {friend.friendAvatar && (
+                          <Image
+                            src={friend.friendAvatar}
+                            alt={friend.friendName}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform"
+                          />
+                        )}
+                        {friend.status === 'online' && (
+                          <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                        )}
+                      </div>
+                      <p className="font-semibold text-gray-800 text-sm truncate group-hover:text-blue-600">
+                        {friend.friendName}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-600">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <p>No friends to show</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Photos Tab */}
+          {activeTab === 'photos' && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Photos</h2>
+              {userPosts.filter(p => p.image).length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {userPosts
+                    .filter(post => post.image)
+                    .map(post => (
+                      <div key={post.id} className="rounded-lg overflow-hidden cursor-pointer group shadow-md hover:shadow-xl transition-shadow">
+                        <img
+                          src={post.image}
+                          alt="Photo"
+                          className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            console.error('Image failed to load:', post.image);
+                            e.currentTarget.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
+                          }}
+                        />
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-600">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p>No photos to show</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -75,11 +75,17 @@ app.post('/api/posts', (req: Request, res: Response) => {
   res.json(newPost);
 });
 
-// Like a post
+// Like/Unlike a post
 app.post('/api/posts/:id/like', (req: Request, res: Response) => {
   const post = posts.find(p => p.id === req.params.id);
+  const { action } = req.body; // 'like' or 'unlike'
+  
   if (post) {
-    post.likes += 1;
+    if (action === 'unlike' && post.likes > 0) {
+      post.likes -= 1;
+    } else if (action === 'like') {
+      post.likes += 1;
+    }
     res.json(post);
   } else {
     res.status(404).json({ message: 'Post not found' });
@@ -99,6 +105,17 @@ app.post('/api/posts/:id/comment', (req: Request, res: Response) => {
     };
     post.comments.push(newComment);
     res.json(post);
+  } else {
+    res.status(404).json({ message: 'Post not found' });
+  }
+});
+
+// Delete a post
+app.delete('/api/posts/:id', (req: Request, res: Response) => {
+  const postIndex = posts.findIndex(p => p.id === req.params.id);
+  if (postIndex !== -1) {
+    posts.splice(postIndex, 1);
+    res.json({ success: true, message: 'Post deleted' });
   } else {
     res.status(404).json({ message: 'Post not found' });
   }
