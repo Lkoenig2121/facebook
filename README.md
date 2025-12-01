@@ -186,7 +186,3 @@ facebook-clone/
 ## License
 
 This is a demo project for educational purposes.
-
-## Manchester Edition 🔴
-
-Built with love from Manchester! 🏙️
