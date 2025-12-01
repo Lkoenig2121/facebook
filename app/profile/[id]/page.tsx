@@ -53,6 +53,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [activeTab, setActiveTab] = useState<'about' | 'posts' | 'friends' | 'photos'>('about');
   const [userPosts, setUserPosts] = useState<PostType[]>([]);
   const [userFriends, setUserFriends] = useState<Friend[]>([]);
+  const [showProfilePicture, setShowProfilePicture] = useState(false);
 
   const isOwnProfile = currentUser?.id === resolvedParams.id;
 
@@ -163,6 +164,60 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+
+      {/* Profile Picture Modal */}
+      {showProfilePicture && profileUser && (
+        <div 
+          className="fixed inset-0 bg-white z-50 flex items-center justify-center p-4"
+          onClick={() => setShowProfilePicture(false)}
+        >
+          <button
+            onClick={() => setShowProfilePicture(false)}
+            className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors z-10"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <div className="max-w-4xl max-h-[90vh] relative">
+            <div className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200">
+              {/* Header */}
+              <div className="bg-white border-b border-gray-200 p-4 flex items-center space-x-3">
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                  {profileUser.avatar && (
+                    <Image
+                      src={profileUser.avatar}
+                      alt={profileUser.name}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-gray-800 font-semibold">{profileUser.name}</h3>
+                  <p className="text-gray-500 text-sm">Profile Picture</p>
+                </div>
+              </div>
+              
+              {/* Image */}
+              <div className="relative bg-gray-50" onClick={(e) => e.stopPropagation()}>
+                {profileUser.avatar ? (
+                  <img
+                    src={profileUser.avatar}
+                    alt={profileUser.name}
+                    className="w-full h-auto max-h-[70vh] object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-96 flex items-center justify-center text-gray-400 text-6xl font-semibold bg-gray-100">
+                    {profileUser.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <main className="max-w-5xl mx-auto pb-12">
         {/* Cover Photo and Profile Picture */}
@@ -196,7 +251,10 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
               {/* Profile Picture */}
               <div className="flex flex-col md:flex-row md:items-end -mt-20 mb-4 md:mb-0">
                 <div className="relative">
-                  <div className="relative w-40 h-40 rounded-full border-4 border-white overflow-hidden bg-gray-200 shadow-lg">
+                  <div 
+                    onClick={() => !isEditing && setShowProfilePicture(true)}
+                    className={`relative w-40 h-40 rounded-full border-4 border-white overflow-hidden bg-gray-200 shadow-lg ${!isEditing && 'cursor-pointer hover:opacity-90 transition-opacity'}`}
+                  >
                     {(isEditing ? (editForm.avatar || profileUser.avatar) : profileUser.avatar) ? (
                       <Image
                         src={isEditing ? (editForm.avatar || profileUser.avatar) : profileUser.avatar}
