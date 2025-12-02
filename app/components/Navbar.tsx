@@ -76,7 +76,7 @@ export default function Navbar() {
           <div className="flex items-center space-x-3">
             {/* Notifications */}
             <Notifications />
-            
+
             <Link
               href={`/profile/${user.id}`}
               className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors ${

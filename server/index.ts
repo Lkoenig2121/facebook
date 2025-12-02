@@ -3,7 +3,17 @@ import cors from 'cors';
 import { users, User } from './data/users';
 import { posts, Post } from './data/posts';
 import { stories } from './data/stories';
-import { getFriendsByUserId } from './data/friends';
+import { 
+  getFriendsByUserId, 
+  getFriendRequestsForUser,
+  getSentFriendRequests,
+  areFriends,
+  hasPendingRequest,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  removeFriend
+} from './data/friends';
 import { 
   getNotificationsByUserId, 
   getUnreadCount, 
@@ -172,6 +182,89 @@ app.get('/api/stories', (req: Request, res: Response) => {
 app.get('/api/friends/:userId', (req: Request, res: Response) => {
   const friends = getFriendsByUserId(req.params.userId);
   res.json(friends);
+});
+
+// Get friend requests for user
+app.get('/api/friend-requests/:userId', (req: Request, res: Response) => {
+  const requests = getFriendRequestsForUser(req.params.userId);
+  res.json(requests);
+});
+
+// Get sent friend requests
+app.get('/api/friend-requests/:userId/sent', (req: Request, res: Response) => {
+  const requests = getSentFriendRequests(req.params.userId);
+  res.json(requests);
+});
+
+// Check friendship status
+app.get('/api/friendship-status/:userId/:targetId', (req: Request, res: Response) => {
+  const { userId, targetId } = req.params;
+  const isFriend = areFriends(userId, targetId);
+  const hasPending = hasPendingRequest(userId, targetId);
+  res.json({ isFriend, hasPendingRequest: hasPending });
+});
+
+// Send friend request
+app.post('/api/friend-requests', (req: Request, res: Response) => {
+  const { fromUser, toUser } = req.body;
+  
+  // Check if already friends
+  if (areFriends(fromUser.id, toUser.id)) {
+    res.status(400).json({ message: 'Already friends' });
+    return;
+  }
+  
+  // Check if request already exists
+  if (hasPendingRequest(fromUser.id, toUser.id)) {
+    res.status(400).json({ message: 'Friend request already pending' });
+    return;
+  }
+  
+  const request = sendFriendRequest(fromUser, toUser);
+  
+  // Create notification for the recipient
+  createNotification({
+    userId: toUser.id,
+    type: 'friend_request',
+    actorId: fromUser.id,
+    actorName: fromUser.name,
+    actorAvatar: fromUser.avatar,
+    message: 'sent you a friend request',
+    read: false,
+  });
+  
+  res.json(request);
+});
+
+// Accept friend request
+app.post('/api/friend-requests/:id/accept', (req: Request, res: Response) => {
+  const success = acceptFriendRequest(req.params.id);
+  if (success) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ message: 'Friend request not found' });
+  }
+});
+
+// Decline friend request
+app.post('/api/friend-requests/:id/decline', (req: Request, res: Response) => {
+  const success = declineFriendRequest(req.params.id);
+  if (success) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ message: 'Friend request not found' });
+  }
+});
+
+// Remove friend
+app.delete('/api/friends/:userId/:friendId', (req: Request, res: Response) => {
+  const { userId, friendId } = req.params;
+  const success = removeFriend(userId, friendId);
+  if (success) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ message: 'Friendship not found' });
+  }
 });
 
 // Notifications endpoints

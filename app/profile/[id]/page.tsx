@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
@@ -55,8 +55,29 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [userFriends, setUserFriends] = useState<Friend[]>([]);
   const [showProfilePicture, setShowProfilePicture] = useState(false);
   const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
+  const [friendshipStatus, setFriendshipStatus] = useState<{
+    isFriend: boolean;
+    hasPendingRequest: boolean;
+  }>({ isFriend: false, hasPendingRequest: false });
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   const isOwnProfile = currentUser?.id === resolvedParams.id;
+
+  const fetchFriendshipStatus = useCallback(async () => {
+    if (!currentUser || isOwnProfile) return;
+    
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/friendship-status/${currentUser.id}/${resolvedParams.id}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFriendshipStatus(data);
+      }
+    } catch (error) {
+      console.error('Error fetching friendship status:', error);
+    }
+  }, [currentUser, resolvedParams.id, isOwnProfile]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -66,7 +87,8 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
     fetchProfile();
     fetchUserPosts();
     fetchUserFriends();
-  }, [currentUser, resolvedParams.id, router]);
+    fetchFriendshipStatus();
+  }, [currentUser, resolvedParams.id, router, fetchFriendshipStatus]);
 
   // Clear highlighted post after 3 seconds
   useEffect(() => {
@@ -118,6 +140,56 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
       setUserFriends(data);
     } catch (error) {
       console.error('Error fetching friends:', error);
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    if (!currentUser || !profileUser) return;
+    
+    setSendingRequest(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/friend-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUser: {
+            id: currentUser.id,
+            name: currentUser.name,
+            avatar: currentUser.avatar,
+          },
+          toUser: {
+            id: profileUser.id,
+            name: profileUser.name,
+            avatar: profileUser.avatar,
+          },
+        }),
+      });
+      
+      if (response.ok) {
+        setFriendshipStatus({ ...friendshipStatus, hasPendingRequest: true });
+      }
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    if (!currentUser || !profileUser) return;
+    
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/friends/${currentUser.id}/${profileUser.id}`,
+        { method: 'DELETE' }
+      );
+      
+      if (response.ok) {
+        setFriendshipStatus({ isFriend: false, hasPendingRequest: false });
+        fetchUserFriends();
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
     }
   };
 
@@ -312,7 +384,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
               </div>
 
               {/* Action Buttons */}
-              {isOwnProfile && (
+              {isOwnProfile ? (
                 <div className="flex space-x-2">
                   {isEditing ? (
                     <>
@@ -343,6 +415,56 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                       <span>Edit Profile</span>
                     </button>
                   )}
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  {friendshipStatus.isFriend ? (
+                    <>
+                      <button className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold flex items-center space-x-2">
+                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>Friends</span>
+                      </button>
+                      <button
+                        onClick={handleRemoveFriend}
+                        className="bg-red-100 text-red-600 px-4 py-2 rounded-lg font-semibold hover:bg-red-200 transition-colors"
+                      >
+                        Unfriend
+                      </button>
+                    </>
+                  ) : friendshipStatus.hasPendingRequest ? (
+                    <button
+                      disabled
+                      className="bg-gray-200 text-gray-600 px-6 py-2 rounded-lg font-semibold flex items-center space-x-2 cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                      </svg>
+                      <span>Request Sent</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSendFriendRequest}
+                      disabled={sendingRequest}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                      </svg>
+                      <span>{sendingRequest ? 'Sending...' : 'Add Friend'}</span>
+                    </button>
+                  )}
+                  <Link
+                    href="/messages"
+                    className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                    </svg>
+                    <span>Message</span>
+                  </Link>
                 </div>
               )}
             </div>
