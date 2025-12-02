@@ -218,14 +218,17 @@ export default function Post({ post, onUpdate }: PostProps) {
       {/* Post Image */}
       {post.image && (
         <div
-          className="relative w-full h-96 cursor-pointer select-none"
+          className="relative w-full cursor-pointer select-none bg-gray-100"
           onClick={handleDoubleTap}
         >
-          <Image
+          <img
             src={post.image}
             alt="Post image"
-            fill
-            className="object-cover"
+            className="w-full max-h-[600px] object-contain"
+            onError={(e) => {
+              // Hide image if it fails to load
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
 
           {/* Heart Animation */}

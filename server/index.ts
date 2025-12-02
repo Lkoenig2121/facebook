@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { users, User } from './data/users';
 import { posts, Post } from './data/posts';
 import { stories } from './data/stories';
@@ -25,8 +28,43 @@ import {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Only image files are allowed!'));
+  }
+});
+
 app.use(cors());
 app.use(express.json());
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadsDir));
 
 // Auth routes
 app.post('/api/login', (req: Request, res: Response) => {
@@ -75,6 +113,31 @@ app.put('/api/users/:id', (req: Request, res: Response) => {
 // Get all posts
 app.get('/api/posts', (req: Request, res: Response) => {
   res.json(posts);
+});
+
+// Upload image endpoint
+app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
+  
+  const imageUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+  res.json({ url: imageUrl, filename: req.file.filename });
+});
+
+// Upload multiple images
+app.post('/api/upload/multiple', upload.array('images', 10), (req: Request, res: Response) => {
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    res.status(400).json({ error: 'No files uploaded' });
+    return;
+  }
+  
+  const urls = req.files.map(file => ({
+    url: `http://localhost:${PORT}/uploads/${file.filename}`,
+    filename: file.filename
+  }));
+  res.json({ urls });
 });
 
 // Create a new post
