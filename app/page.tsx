@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Stories from './components/Stories';
@@ -25,8 +25,11 @@ interface PostType {
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
+  const postRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   useEffect(() => {
     if (!user) {
@@ -35,6 +38,29 @@ export default function Home() {
     }
     fetchPosts();
   }, [user, router]);
+
+  // Handle scrollTo parameter from notifications
+  useEffect(() => {
+    const scrollToPostId = searchParams.get('scrollTo');
+    if (scrollToPostId && posts.length > 0 && !loading) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        const postElement = postRefs.current[scrollToPostId];
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setHighlightedPostId(scrollToPostId);
+          
+          // Clear highlight after 3 seconds
+          setTimeout(() => {
+            setHighlightedPostId(null);
+          }, 3000);
+        }
+        
+        // Clear the URL parameter
+        router.replace('/', { scroll: false });
+      }, 100);
+    }
+  }, [searchParams, posts, loading, router]);
 
   const fetchPosts = async () => {
     try {
@@ -109,7 +135,17 @@ export default function Home() {
                 </div>
               ) : (
                 posts.map(post => (
-                  <Post key={post.id} post={post} onUpdate={fetchPosts} />
+                  <div
+                    key={post.id}
+                    ref={(el) => { postRefs.current[post.id] = el; }}
+                    className={`transition-all duration-500 ${
+                      highlightedPostId === post.id
+                        ? 'ring-4 ring-blue-500 ring-opacity-50 rounded-xl'
+                        : ''
+                    }`}
+                  >
+                    <Post post={post} onUpdate={fetchPosts} />
+                  </div>
                 ))
               )}
             </div>

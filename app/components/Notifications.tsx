@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 interface Notification {
@@ -22,6 +23,7 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
+  const router = useRouter();
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -232,16 +234,23 @@ export default function Notifications() {
               {notifications.length > 0 ? (
                 <div className="divide-y divide-gray-100">
                   {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      onClick={() => {
-                        markAsRead(notification.id);
-                        setShowDropdown(false);
-                      }}
-                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.read ? "bg-blue-50" : ""
-                      }`}
-                    >
+                      <div
+                        key={notification.id}
+                        onClick={() => {
+                          markAsRead(notification.id);
+                          setShowDropdown(false);
+                          
+                          // Navigate to the post if it's a like or comment notification
+                          if (notification.postId && (notification.type === 'like' || notification.type === 'comment')) {
+                            router.push(`/?scrollTo=${notification.postId}`);
+                          } else if (notification.type === 'friend_request') {
+                            router.push('/friends');
+                          }
+                        }}
+                        className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                          !notification.read ? "bg-blue-50" : ""
+                        }`}
+                      >
                       <div className="flex space-x-3">
                         <div className="relative flex-shrink-0">
                           {getNotificationIcon(notification.type)}
