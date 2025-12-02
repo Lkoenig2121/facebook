@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import Notifications from "./Notifications";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -73,6 +74,9 @@ export default function Navbar() {
 
           {/* Right - Profile Menu */}
           <div className="flex items-center space-x-3">
+            {/* Notifications */}
+            <Notifications />
+            
             <Link
               href={`/profile/${user.id}`}
               className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors ${

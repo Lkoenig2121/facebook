@@ -41,11 +41,18 @@ export default function Post({ post, onUpdate }: PostProps) {
   const isOwnPost = user?.id === post.userId;
 
   const handleLike = async () => {
+    if (!user) return;
+    
     try {
       await fetch(`http://localhost:3001/api/posts/${post.id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: liked ? 'unlike' : 'like' }),
+        body: JSON.stringify({ 
+          action: liked ? 'unlike' : 'like',
+          userId: user.id,
+          userName: user.name,
+          userAvatar: user.avatar,
+        }),
       });
       setLiked(!liked);
       onUpdate();

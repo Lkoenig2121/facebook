@@ -4,6 +4,13 @@ import { users, User } from './data/users';
 import { posts, Post } from './data/posts';
 import { stories } from './data/stories';
 import { getFriendsByUserId } from './data/friends';
+import { 
+  getNotificationsByUserId, 
+  getUnreadCount, 
+  markAsRead, 
+  markAllAsRead,
+  createNotification 
+} from './data/notifications';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -78,13 +85,27 @@ app.post('/api/posts', (req: Request, res: Response) => {
 // Like/Unlike a post
 app.post('/api/posts/:id/like', (req: Request, res: Response) => {
   const post = posts.find(p => p.id === req.params.id);
-  const { action } = req.body; // 'like' or 'unlike'
+  const { action, userId, userName, userAvatar } = req.body;
   
   if (post) {
     if (action === 'unlike' && post.likes > 0) {
       post.likes -= 1;
     } else if (action === 'like') {
       post.likes += 1;
+      
+      // Create notification for post owner (if not liking own post)
+      if (post.userId !== userId) {
+        createNotification({
+          userId: post.userId,
+          type: 'like',
+          actorId: userId,
+          actorName: userName,
+          actorAvatar: userAvatar,
+          postId: post.id,
+          message: 'liked your post',
+          read: false,
+        });
+      }
     }
     res.json(post);
   } else {
@@ -96,14 +117,35 @@ app.post('/api/posts/:id/like', (req: Request, res: Response) => {
 app.post('/api/posts/:id/comment', (req: Request, res: Response) => {
   const post = posts.find(p => p.id === req.params.id);
   if (post) {
+    const { userId, userName, userAvatar, content } = req.body;
+    
     // Generate a unique ID using timestamp and random number
     const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newComment = {
       id: uniqueId,
-      ...req.body,
+      userId,
+      userName,
+      userAvatar,
+      content,
       timestamp: new Date().toISOString(),
     };
     post.comments.push(newComment);
+    
+    // Create notification for post owner (if not commenting on own post)
+    if (post.userId !== userId) {
+      const commentPreview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      createNotification({
+        userId: post.userId,
+        type: 'comment',
+        actorId: userId,
+        actorName: userName,
+        actorAvatar: userAvatar,
+        postId: post.id,
+        message: `commented on your post: "${commentPreview}"`,
+        read: false,
+      });
+    }
+    
     res.json(post);
   } else {
     res.status(404).json({ message: 'Post not found' });
@@ -130,6 +172,27 @@ app.get('/api/stories', (req: Request, res: Response) => {
 app.get('/api/friends/:userId', (req: Request, res: Response) => {
   const friends = getFriendsByUserId(req.params.userId);
   res.json(friends);
+});
+
+// Notifications endpoints
+app.get('/api/notifications/:userId', (req: Request, res: Response) => {
+  const userNotifications = getNotificationsByUserId(req.params.userId);
+  res.json(userNotifications);
+});
+
+app.get('/api/notifications/:userId/unread-count', (req: Request, res: Response) => {
+  const count = getUnreadCount(req.params.userId);
+  res.json({ count });
+});
+
+app.post('/api/notifications/:id/read', (req: Request, res: Response) => {
+  markAsRead(req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/notifications/:userId/mark-all-read', (req: Request, res: Response) => {
+  markAllAsRead(req.params.userId);
+  res.json({ success: true });
 });
 
 app.listen(PORT, () => {
