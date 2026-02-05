@@ -87,7 +87,7 @@ export default function Home() {
   }
 
   if (loading) {
-    return (
+  return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="max-w-2xl mx-auto pt-6 px-4">

@@ -359,7 +359,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                     </button>
                   )}
                 </div>
-                <div className="md:ml-6 mt-4 md:mt-0">
+                <div className="md:ml-6 mt-6 md:mt-4">
                   {isEditing ? (
                     <input
                       type="text"

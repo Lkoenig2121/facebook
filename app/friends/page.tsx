@@ -45,15 +45,16 @@ export default function FriendsPage() {
     "all" | "requests" | "suggestions"
   >("all");
   const [processingRequests, setProcessingRequests] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
+  const [openMenuFriendId, setOpenMenuFriendId] = useState<string | null>(null);
 
   const fetchFriends = useCallback(async () => {
     if (!user) return;
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/friends/${user.id}`
+        `http://localhost:3001/api/friends/${user.id}`,
       );
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -69,7 +70,7 @@ export default function FriendsPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/friend-requests/${user.id}`
+        `http://localhost:3001/api/friend-requests/${user.id}`,
       );
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -105,7 +106,7 @@ export default function FriendsPage() {
           }) =>
             u.id !== user.id &&
             !friendIds.has(u.id) &&
-            !pendingRequestIds.has(u.id)
+            !pendingRequestIds.has(u.id),
         )
         .slice(0, 6);
 
@@ -130,6 +131,13 @@ export default function FriendsPage() {
     }
   }, [activeTab, fetchSuggestions]);
 
+  useEffect(() => {
+    if (openMenuFriendId === null) return;
+    const closeMenu = () => setOpenMenuFriendId(null);
+    document.addEventListener("click", closeMenu);
+    return () => document.removeEventListener("click", closeMenu);
+  }, [openMenuFriendId]);
+
   const handleAcceptRequest = async (requestId: string) => {
     setProcessingRequests((prev) => new Set(prev).add(requestId));
 
@@ -138,7 +146,7 @@ export default function FriendsPage() {
         `http://localhost:3001/api/friend-requests/${requestId}/accept`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (response.ok) {
@@ -164,7 +172,7 @@ export default function FriendsPage() {
         `http://localhost:3001/api/friend-requests/${requestId}/decline`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (response.ok) {
@@ -202,7 +210,7 @@ export default function FriendsPage() {
               avatar: targetUser.avatar,
             },
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -221,7 +229,7 @@ export default function FriendsPage() {
         `http://localhost:3001/api/friends/${user.id}/${friendId}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (response.ok) {
@@ -236,7 +244,7 @@ export default function FriendsPage() {
     const now = new Date();
     const time = new Date(timestamp);
     const diffInMinutes = Math.floor(
-      (now.getTime() - time.getTime()) / (1000 * 60)
+      (now.getTime() - time.getTime()) / (1000 * 60),
     );
 
     if (diffInMinutes < 1) return "Just now";
@@ -414,14 +422,51 @@ export default function FriendsPage() {
                 </div>
 
                 {friends.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {friends.map((friend) => (
                       <div
                         key={friend.id}
-                        className="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow"
+                        className="relative border border-gray-200 rounded-xl p-3 sm:p-4 hover:shadow-lg transition-shadow"
                       >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenMenuFriendId(
+                              openMenuFriendId === friend.id ? null : friend.id,
+                            );
+                          }}
+                          className="absolute top-2 right-2 z-10 p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                          aria-label="More options"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
+                        </button>
+                        {openMenuFriendId === friend.id && (
+                          <div
+                            className="absolute top-10 right-2 z-20 min-w-[140px] py-1 bg-white rounded-lg shadow-lg border border-gray-200"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRemoveFriend(friend.friendId);
+                                setOpenMenuFriendId(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              Remove Friend
+                            </button>
+                          </div>
+                        )}
                         <Link href={`/profile/${friend.friendId}`}>
-                          <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-3 bg-gray-200">
+                          <div className="relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[140px] lg:max-w-none mx-auto lg:mx-0 aspect-square rounded-lg overflow-hidden mb-2 sm:mb-3 bg-gray-200">
                             {friend.friendAvatar && (
                               <Image
                                 src={friend.friendAvatar}
@@ -431,24 +476,18 @@ export default function FriendsPage() {
                               />
                             )}
                             {friend.status === "online" && (
-                              <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                              <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 border-2 border-white rounded-full"></div>
                             )}
                           </div>
-                          <h3 className="font-semibold text-gray-800 mb-1">
+                          <h3 className="font-semibold text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base truncate">
                             {friend.friendName}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             {friend.status === "online"
                               ? "Active now"
                               : "Offline"}
                           </p>
                         </Link>
-                        <button
-                          onClick={() => handleRemoveFriend(friend.friendId)}
-                          className="mt-3 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-                        >
-                          Remove Friend
-                        </button>
                       </div>
                     ))}
                   </div>
@@ -556,14 +595,14 @@ export default function FriendsPage() {
                 </h2>
 
                 {suggestions.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {suggestions.map((suggestion) => (
                       <div
                         key={suggestion.id}
                         className="border border-gray-200 rounded-xl overflow-hidden"
                       >
                         <Link href={`/profile/${suggestion.id}`}>
-                          <div className="relative w-full aspect-square bg-gray-200">
+                          <div className="relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[140px] lg:max-w-none mx-auto lg:mx-0 aspect-square bg-gray-200">
                             {suggestion.avatar ? (
                               <Image
                                 src={suggestion.avatar}
@@ -572,26 +611,26 @@ export default function FriendsPage() {
                                 className="object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-4xl text-gray-500 font-semibold">
+                              <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl lg:text-4xl text-gray-500 font-semibold">
                                 {suggestion.name.charAt(0)}
                               </div>
                             )}
                           </div>
                         </Link>
-                        <div className="p-4">
+                        <div className="p-3 sm:p-4">
                           <Link href={`/profile/${suggestion.id}`}>
-                            <h3 className="font-semibold text-gray-800 mb-1 hover:underline">
+                            <h3 className="font-semibold text-gray-800 mb-0.5 sm:mb-1 hover:underline text-sm sm:text-base truncate">
                               {suggestion.name}
                             </h3>
                           </Link>
                           {suggestion.location && (
-                            <p className="text-sm text-gray-500 mb-3">
+                            <p className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3 truncate">
                               {suggestion.location}
                             </p>
                           )}
                           <button
                             onClick={() => handleSendRequest(suggestion)}
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            className="w-full px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-base bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                           >
                             Add Friend
                           </button>
